@@ -2,34 +2,53 @@ package fr.angel.dynamicisland.model.service
 
 import android.accessibilityservice.AccessibilityService
 import android.annotation.SuppressLint
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
 import android.content.Intent.ACTION_SCREEN_OFF
 import android.content.Intent.ACTION_SCREEN_ON
+import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.os.Build
 import android.util.Log
-import android.view.*
-import android.view.WindowManager.LayoutParams.*
+import android.view.Gravity
+import android.view.WindowManager
+import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+import android.view.WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+import android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+import android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+import android.view.WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+import android.view.WindowManager.LayoutParams.WRAP_CONTENT
 import android.view.accessibility.AccessibilityEvent
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Recomposer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.AndroidUiDispatcher
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.compositionContext
-import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import fr.angel.dynamicisland.R
 import fr.angel.dynamicisland.island.Island
 import fr.angel.dynamicisland.island.IslandState
 import fr.angel.dynamicisland.island.IslandViewState
-import fr.angel.dynamicisland.model.*
+import fr.angel.dynamicisland.model.MyLifecycleOwner
+import fr.angel.dynamicisland.model.SETTINGS_CHANGED
+import fr.angel.dynamicisland.model.SETTINGS_KEY
+import fr.angel.dynamicisland.model.SETTINGS_THEME_INVERTED
+import fr.angel.dynamicisland.model.THEME_INVERTED
 import fr.angel.dynamicisland.plugins.BasePlugin
 import fr.angel.dynamicisland.plugins.ExportedPlugins
-import fr.angel.dynamicisland.ui.island.*
+import fr.angel.dynamicisland.ui.island.IslandApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -74,7 +93,7 @@ class IslandOverlayService : AccessibilityService() {
 					init()
 				}
 				SETTINGS_THEME_INVERTED -> {
-					val settingsPreferences = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE)
+					val settingsPreferences = getSharedPreferences(SETTINGS_KEY, MODE_PRIVATE)
 					invertedTheme = settingsPreferences.getBoolean(THEME_INVERTED, false)
 				}
 				ACTION_SCREEN_ON -> {
@@ -87,21 +106,28 @@ class IslandOverlayService : AccessibilityService() {
 		}
 	}
 
-	override fun onServiceConnected() {
+	@SuppressLint("UnspecifiedRegisterReceiverFlag")
+    override fun onServiceConnected() {
 		super.onServiceConnected()
 		setTheme(R.style.Theme_DynamicIsland)
 		instance = this
-		settingsPreferences = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE)
+		settingsPreferences = getSharedPreferences(SETTINGS_KEY, MODE_PRIVATE)
 
 		// Register broadcast receiver
-		registerReceiver(mBroadcastReceiver, IntentFilter().apply {
+		val intentFilter = IntentFilter().apply {
 			addAction(SETTINGS_CHANGED)
 			addAction(SETTINGS_THEME_INVERTED)
 			addAction(ACTION_SCREEN_ON)
 			addAction(ACTION_SCREEN_OFF)
-		})
+		}
 
-		// Setup plugins (check if they are enabled)
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(mBroadcastReceiver, intentFilter, RECEIVER_NOT_EXPORTED)
+        }else{
+			registerReceiver(mBroadcastReceiver, intentFilter)
+		}
+
+        // Setup plugins (check if they are enabled)
 		ExportedPlugins.setupPlugins(context = this)
 
 		// Setup
@@ -133,7 +159,7 @@ class IslandOverlayService : AccessibilityService() {
 		}
 
 		// Setup inverted theme
-		val settingsPreferences = getSharedPreferences(SETTINGS_KEY, Context.MODE_PRIVATE)
+		val settingsPreferences = getSharedPreferences(SETTINGS_KEY, MODE_PRIVATE)
 		invertedTheme = settingsPreferences.getBoolean(THEME_INVERTED, false)
 	}
 

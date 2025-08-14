@@ -1,10 +1,12 @@
 package fr.angel.dynamicisland.model.service
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -59,17 +61,22 @@ class NotificationService : NotificationListenerService() {
 		}
 	}
 
-	override fun onCreate() {
+	@SuppressLint("UnspecifiedRegisterReceiverFlag")
+    override fun onCreate() {
 		super.onCreate()
 		instance = this
 		Log.d("NotificationService", "onCreate: ")
 
 		// Register broadcast receiver
-		registerReceiver(mBroadcastReceiver, IntentFilter().apply {
+		val intentFilter = IntentFilter().apply {
 			addAction(ACTION_OPEN_CLOSE)
 			addAction(ACTION_CLOSE)
-		})
-	}
+		}
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+            registerReceiver(mBroadcastReceiver, intentFilter, RECEIVER_NOT_EXPORTED)
+		else
+			registerReceiver(mBroadcastReceiver, intentFilter)
+    }
 
 	override fun onNotificationPosted(statusBarNotification: StatusBarNotification) {
 		super.onNotificationPosted(statusBarNotification)

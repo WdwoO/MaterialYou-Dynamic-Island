@@ -1,11 +1,14 @@
 package fr.angel.dynamicisland.plugins.notification
 
+import android.annotation.SuppressLint
 import android.app.RemoteInput
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.INPUT_METHOD_SERVICE
+import android.content.Context.RECEIVER_NOT_EXPORTED
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -13,15 +16,31 @@ import android.provider.Settings
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.*
+import androidx.compose.material.DismissDirection
+import androidx.compose.material.DismissValue
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.FractionalThreshold
+import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.rememberDismissState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,8 +49,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -153,12 +177,18 @@ class NotificationPlugin(
 
 	override fun canExpand(): Boolean { return true }
 
-	override fun onCreate(context: IslandOverlayService?) {
+	@SuppressLint("UnspecifiedRegisterReceiverFlag")
+    override fun onCreate(context: IslandOverlayService?) {
 		this.context = context ?: return
-		val filter = IntentFilter()
-		filter.addAction(NOTIFICATION_POSTED)
-		filter.addAction(NOTIFICATION_REMOVED)
-		context.registerReceiver(mBroadcastReceiver, filter)
+		val intentFilter = IntentFilter().apply {
+			addAction(NOTIFICATION_POSTED)
+			addAction(NOTIFICATION_REMOVED)
+		}
+
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+			context.registerReceiver(mBroadcastReceiver, intentFilter, RECEIVER_NOT_EXPORTED)
+		else
+			context.registerReceiver(mBroadcastReceiver, intentFilter)
 	}
 
 	@OptIn(ExperimentalMaterialApi::class, ExperimentalMaterial3Api::class)
